@@ -51,7 +51,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsBluetooth
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material.icons.filled.Warning
+import com.example.airmind.ui.components.Earbuds3DInspectionDialog
+import com.example.airmind.ui.components.Earbuds3DSceneView
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -126,6 +129,7 @@ fun MainDashboardScreen(
     val orientation by sensorManager.orientationAngles.collectAsState()
 
     var hasBluetoothPermission by remember { mutableStateOf(deviceManager.hasBluetoothConnectPermission()) }
+    var show3DInspectionDialog by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -300,11 +304,12 @@ fun MainDashboardScreen(
                 }
             )
 
-            // High-Fidelity 3D Earbuds Model that Rotates based on Device Orientation Data
+            // High-Fidelity 3D Earbuds Model with Interactive AR SceneView Orbit & Inspection
             GlassmorphicCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("sceneview_earbuds_card")
+                    .testTag("sceneview_earbuds_card"),
+                onClick = { show3DInspectionDialog = true }
             ) {
                 Column(
                     modifier = Modifier
@@ -324,27 +329,58 @@ fun MainDashboardScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        // 3D Motion Orientation Badge
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0x1F00E5FF))
-                                .padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MotionPhotosOn,
-                                contentDescription = null,
-                                tint = CyberCyan,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Tilt: ${orientation.roll.toInt()}°",
-                                color = CyberCyan,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // 3D Motion Orientation Badge
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0x1F00E5FF))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MotionPhotosOn,
+                                    contentDescription = null,
+                                    tint = CyberCyan,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Tilt: ${orientation.roll.toInt()}°",
+                                    color = CyberCyan,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Interactive 3D AR Inspect Studio Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0x3300E5FF))
+                                    .border(1.dp, CyberCyan.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                    .clickable { show3DInspectionDialog = true }
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.ViewInAr,
+                                        contentDescription = "Inspect 3D",
+                                        tint = CyberCyan,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Inspect 3D",
+                                        color = CyberCyan,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -355,12 +391,38 @@ fun MainDashboardScreen(
                         showRings = true
                     )
 
-                    Text(
-                        text = "Tilt your device or drag to rotate in 3D space",
-                        color = TextGray,
-                        fontSize = 11.sp
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x0CFFFFFF))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ViewInAr,
+                            contentDescription = null,
+                            tint = CyberCyan,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Tap to open 3D AR Studio • 360° Orbit & Hardware Inspection",
+                            color = CyberCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
+            }
+
+            if (show3DInspectionDialog) {
+                Earbuds3DInspectionDialog(
+                    deviceName = if (connectedState.isConnected) connectedState.deviceName else "AIRMIND AI Earbuds",
+                    sensorManager = sensorManager,
+                    onDismiss = { show3DInspectionDialog = false }
+                )
             }
 
             // Noise Cancellation Controller Service Card (ANC / Transparency / Off)
