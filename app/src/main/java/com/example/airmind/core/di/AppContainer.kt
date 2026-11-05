@@ -68,7 +68,8 @@ class DefaultAppContainer(override val context: Context) : AppContainer {
         EarbudActionHandler(
             context = context,
             mobileControlManager = mobileControlManager,
-            database = database
+            database = database,
+            noiseCancellationController = noiseCancellationController
         )
     }
 

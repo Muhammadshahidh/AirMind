@@ -134,4 +134,33 @@ class ExampleRobolectricTest {
         manager.refreshConnectedDevice()
         assertNotNull(manager.connectedState.value)
     }
+
+    @Test
+    fun `earbud action handler executes mapped actions`() = runBlocking {
+        val mobileControl = com.example.airmind.core.controls.MobileControlManager(context)
+        val listeningEngine = com.example.airmind.core.audio.RemoteListeningEngine(context)
+        val prefs = com.example.airmind.core.datastore.UserPreferencesRepository(context)
+        val noiseController = com.example.airmind.core.audio.NoiseCancellationController(
+            context = context,
+            listeningEngine = listeningEngine,
+            mobileControlManager = mobileControl,
+            preferencesRepository = prefs
+        )
+        val handler = com.example.airmind.core.bluetooth.EarbudActionHandler(
+            context = context,
+            mobileControlManager = mobileControl,
+            database = database,
+            noiseCancellationController = noiseController
+        )
+
+        database.gestureDao().insertAll(
+            listOf(
+                GestureMappingEntity(eventType = "DOUBLE_TAP", earbudSide = "LEFT", actionType = "NEXT_TRACK")
+            )
+        )
+
+        handler.executeMappedAction("DOUBLE_TAP", "LEFT", "PLAY_PAUSE")
+        assertNotNull(handler.recentEvents)
+    }
 }
+

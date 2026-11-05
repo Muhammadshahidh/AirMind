@@ -156,6 +156,7 @@ fun AirMindNavGraph(
         composable(AirMindRoutes.GESTURES) {
             GestureSettingsScreen(
                 database = appContainer.database,
+                actionHandler = appContainer.earbudActionHandler,
                 onBackClick = { navController.popBackStack() }
             )
         }

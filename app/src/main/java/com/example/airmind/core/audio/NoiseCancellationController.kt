@@ -33,23 +33,29 @@ class NoiseCancellationController(
     private val _ancLevel = MutableStateFlow(1.0f) // 0.0 to 1.0 intensity
     val ancLevel: StateFlow<Float> = _ancLevel.asStateFlow()
 
+    @Volatile
+    private var hasExplicitModeSet = false
+
     init {
-        // Load initial state once from preferences
+        // Load initial state once from preferences if mode was not already explicitly set
         scope.launch {
             try {
                 val initial = preferencesRepository.remoteListeningConfig.first()
-                if (initial.noiseReduction && !initial.voiceEnhancement) {
-                    _currentMode.value = NoiseControlMode.ANC
-                } else if (initial.voiceEnhancement) {
-                    _currentMode.value = NoiseControlMode.TRANSPARENCY
-                } else {
-                    _currentMode.value = NoiseControlMode.OFF
+                if (!hasExplicitModeSet) {
+                    if (initial.noiseReduction && !initial.voiceEnhancement) {
+                        _currentMode.value = NoiseControlMode.ANC
+                    } else if (initial.voiceEnhancement) {
+                        _currentMode.value = NoiseControlMode.TRANSPARENCY
+                    } else {
+                        _currentMode.value = NoiseControlMode.OFF
+                    }
                 }
             } catch (_: Exception) {}
         }
     }
 
     fun setMode(mode: NoiseControlMode) {
+        hasExplicitModeSet = true
         _currentMode.value = mode
         mobileControlManager.vibrateFeedback()
 

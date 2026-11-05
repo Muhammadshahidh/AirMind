@@ -1,12 +1,16 @@
 package com.example.airmind.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +25,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -40,11 +54,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.airmind.core.bluetooth.EarbudActionHandler
 import com.example.airmind.core.database.AirMindDatabase
 import com.example.airmind.core.database.entities.GestureMappingEntity
 import com.example.airmind.ui.components.CyberTopAppBar
@@ -58,28 +74,42 @@ import com.example.ui.theme.TextGray
 import com.example.ui.theme.TextWhite
 import kotlinx.coroutines.launch
 
+data class GestureActionDef(
+    val key: String,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val category: String
+)
+
 @Composable
 fun GestureSettingsScreen(
     database: AirMindDatabase,
+    actionHandler: EarbudActionHandler? = null,
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var selectedEarbudSide by remember { mutableStateOf("LEFT") }
+    var selectedEarbudSide by remember { mutableStateOf("LEFT") } // "LEFT", "RIGHT", "BOTH"
     val gestureList by database.gestureDao().getAllGestures().collectAsState(initial = emptyList())
 
-    // Modal state for editing an action
+    // Active editing gesture
     var editingGesture by remember { mutableStateOf<GestureMappingEntity?>(null) }
+    var lastExecutedFeedback by remember { mutableStateOf<String?>(null) }
 
-    val availableActions = listOf(
-        "PLAY_PAUSE" to "Play / Pause",
-        "NEXT_TRACK" to "Next Track",
-        "PREV_TRACK" to "Previous Track",
-        "VOLUME_UP" to "Volume Up",
-        "VOLUME_DOWN" to "Volume Down",
-        "VOICE_ASSISTANT" to "AIRMIND Voice Assistant",
-        "TOGGLE_FLASHLIGHT" to "Toggle Flashlight"
-    )
+    val availableActions = remember {
+        listOf(
+            GestureActionDef("PLAY_PAUSE", "Play / Pause", "Toggle music or podcast playback", Icons.Default.PlayArrow, "Media"),
+            GestureActionDef("NEXT_TRACK", "Next Track", "Skip ahead to the next track", Icons.Default.SkipNext, "Media"),
+            GestureActionDef("PREV_TRACK", "Previous Track", "Go back to the start or previous track", Icons.Default.SkipPrevious, "Media"),
+            GestureActionDef("VOLUME_UP", "Volume Up", "Increase system playback volume", Icons.AutoMirrored.Filled.VolumeUp, "Audio"),
+            GestureActionDef("VOLUME_DOWN", "Volume Down", "Decrease system playback volume", Icons.AutoMirrored.Filled.VolumeDown, "Audio"),
+            GestureActionDef("ANC_CYCLE", "Cycle Noise Control", "Switch ANC, Transparency, and Normal", Icons.Default.Hearing, "Audio"),
+            GestureActionDef("VOICE_ASSISTANT", "AIRMIND AI Assistant", "Trigger on-device voice assistant", Icons.Default.AutoAwesome, "Smart AI"),
+            GestureActionDef("TOGGLE_FLASHLIGHT", "Toggle Flashlight", "Switch device torch on or off", Icons.Default.FlashlightOn, "Utilities"),
+            GestureActionDef("NONE", "None (Disabled)", "Ignore this touch event sequence", Icons.Default.Block, "Utilities")
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -88,7 +118,7 @@ fun GestureSettingsScreen(
             .statusBarsPadding()
     ) {
         CyberTopAppBar(
-            title = "Gestures Customization",
+            title = "Gesture Mapping",
             onBackClick = onBackClick
         )
 
@@ -96,17 +126,18 @@ fun GestureSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item {
                 Text(
-                    text = "Set your own actions for touch gestures",
+                    text = "Assign smart actions to earbud touch sequences",
                     color = TextGray,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
-                // Left Earbud / Right Earbud Toggle Tabs
+                // Earbud Selector Switcher (Left, Both, Right)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -116,68 +147,65 @@ fun GestureSettingsScreen(
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (selectedEarbudSide == "LEFT") CyberCyan else Color.Transparent)
-                            .clickable { selectedEarbudSide = "LEFT" }
-                            .testTag("tab_left_earbud"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Left Earbud",
-                            color = if (selectedEarbudSide == "LEFT") Color(0xFF050811) else TextGray,
-                            fontSize = 13.sp,
-                            fontWeight = if (selectedEarbudSide == "LEFT") FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (selectedEarbudSide == "RIGHT") CyberCyan else Color.Transparent)
-                            .clickable { selectedEarbudSide = "RIGHT" }
-                            .testTag("tab_right_earbud"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Right Earbud",
-                            color = if (selectedEarbudSide == "RIGHT") Color(0xFF050811) else TextGray,
-                            fontSize = 13.sp,
-                            fontWeight = if (selectedEarbudSide == "RIGHT") FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
+                    EarbudTabItem(
+                        title = "Left Earbud",
+                        isSelected = selectedEarbudSide == "LEFT",
+                        onClick = { selectedEarbudSide = "LEFT" },
+                        testTag = "tab_left_earbud",
+                        modifier = Modifier.weight(1f)
+                    )
+                    EarbudTabItem(
+                        title = "Both (Sync)",
+                        isSelected = selectedEarbudSide == "BOTH",
+                        onClick = { selectedEarbudSide = "BOTH" },
+                        testTag = "tab_both_earbuds",
+                        modifier = Modifier.weight(1f)
+                    )
+                    EarbudTabItem(
+                        title = "Right Earbud",
+                        isSelected = selectedEarbudSide == "RIGHT",
+                        onClick = { selectedEarbudSide = "RIGHT" },
+                        testTag = "tab_right_earbud",
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Earbud 3D Sensor Visual
+                // Earbud 3D Sensor Visual Graphic
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp),
+                        .height(150.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Earbuds3DCanvas(
-                        size = 180.dp,
+                        size = 170.dp,
                         showParticles = false,
-                        showRings = false,
+                        showRings = true,
                         autoRotate = true
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // Gesture Rows
+            // Gesture Items Section Header
+            item {
+                Text(
+                    text = "TOUCH SENSOR SEQUENCES",
+                    color = CyberCyan,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            // Single Tap
             item {
                 GestureItemCard(
                     gestureName = "Single Tap",
-                    currentAction = getActionLabel(gestureList, "SINGLE_TAP", selectedEarbudSide),
+                    currentAction = getActionLabel(gestureList, "SINGLE_TAP", selectedEarbudSide, availableActions),
                     badge = "1x",
                     onClick = {
                         val mapping = gestureList.find { it.eventType == "SINGLE_TAP" && (it.earbudSide == selectedEarbudSide || it.earbudSide == "BOTH") }
@@ -187,10 +215,11 @@ fun GestureSettingsScreen(
                 )
             }
 
+            // Double Tap
             item {
                 GestureItemCard(
                     gestureName = "Double Tap",
-                    currentAction = getActionLabel(gestureList, "DOUBLE_TAP", selectedEarbudSide),
+                    currentAction = getActionLabel(gestureList, "DOUBLE_TAP", selectedEarbudSide, availableActions),
                     badge = "2x",
                     onClick = {
                         val mapping = gestureList.find { it.eventType == "DOUBLE_TAP" && (it.earbudSide == selectedEarbudSide || it.earbudSide == "BOTH") }
@@ -200,10 +229,11 @@ fun GestureSettingsScreen(
                 )
             }
 
+            // Triple Tap
             item {
                 GestureItemCard(
                     gestureName = "Triple Tap",
-                    currentAction = getActionLabel(gestureList, "TRIPLE_TAP", selectedEarbudSide),
+                    currentAction = getActionLabel(gestureList, "TRIPLE_TAP", selectedEarbudSide, availableActions),
                     badge = "3x",
                     onClick = {
                         val mapping = gestureList.find { it.eventType == "TRIPLE_TAP" && (it.earbudSide == selectedEarbudSide || it.earbudSide == "BOTH") }
@@ -213,22 +243,132 @@ fun GestureSettingsScreen(
                 )
             }
 
+            // Long Press
             item {
                 GestureItemCard(
-                    gestureName = "Long Press",
-                    currentAction = getActionLabel(gestureList, "LONG_PRESS", selectedEarbudSide),
+                    gestureName = "Long Press (3s)",
+                    currentAction = getActionLabel(gestureList, "LONG_PRESS", selectedEarbudSide, availableActions),
                     badge = "3s",
                     onClick = {
                         val mapping = gestureList.find { it.eventType == "LONG_PRESS" && (it.earbudSide == selectedEarbudSide || it.earbudSide == "BOTH") }
-                            ?: GestureMappingEntity(eventType = "LONG_PRESS", earbudSide = selectedEarbudSide, actionType = "VOICE_ASSISTANT")
+                            ?: GestureMappingEntity(eventType = "LONG_PRESS", earbudSide = selectedEarbudSide, actionType = if (selectedEarbudSide == "LEFT") "VOLUME_DOWN" else "VOLUME_UP")
                         editingGesture = mapping
                     }
                 )
             }
 
-            // Reset to Default button
+            // Interactive Live Test Section
             item {
                 Spacer(modifier = Modifier.height(10.dp))
+                GlassmorphicCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.TouchApp, contentDescription = null, tint = CyberCyan, modifier = Modifier.size(20.dp))
+                            Text(
+                                text = "Test Gesture Simulator",
+                                color = TextWhite,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Text(
+                            text = "Tap any sequence below to simulate the touch trigger on the $selectedEarbudSide earbud and run its mapped action.",
+                            color = TextGray,
+                            fontSize = 12.sp
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TestGesturePill(
+                                label = "1x Tap",
+                                modifier = Modifier.weight(1f),
+                                testTag = "test_single_tap",
+                                onClick = {
+                                    actionHandler?.executeMappedAction("SINGLE_TAP", selectedEarbudSide, "PLAY_PAUSE")
+                                    val act = getActionLabel(gestureList, "SINGLE_TAP", selectedEarbudSide, availableActions)
+                                    lastExecutedFeedback = "Triggered: Single Tap -> $act"
+                                    Toast.makeText(context, "Single Tap Executed: $act", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+
+                            TestGesturePill(
+                                label = "2x Tap",
+                                modifier = Modifier.weight(1f),
+                                testTag = "test_double_tap",
+                                onClick = {
+                                    actionHandler?.executeMappedAction("DOUBLE_TAP", selectedEarbudSide, "NEXT_TRACK")
+                                    val act = getActionLabel(gestureList, "DOUBLE_TAP", selectedEarbudSide, availableActions)
+                                    lastExecutedFeedback = "Triggered: Double Tap -> $act"
+                                    Toast.makeText(context, "Double Tap Executed: $act", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+
+                            TestGesturePill(
+                                label = "3x Tap",
+                                modifier = Modifier.weight(1f),
+                                testTag = "test_triple_tap",
+                                onClick = {
+                                    actionHandler?.executeMappedAction("TRIPLE_TAP", selectedEarbudSide, "PREV_TRACK")
+                                    val act = getActionLabel(gestureList, "TRIPLE_TAP", selectedEarbudSide, availableActions)
+                                    lastExecutedFeedback = "Triggered: Triple Tap -> $act"
+                                    Toast.makeText(context, "Triple Tap Executed: $act", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+
+                            TestGesturePill(
+                                label = "Long Press",
+                                modifier = Modifier.weight(1.3f),
+                                testTag = "test_long_press",
+                                onClick = {
+                                    actionHandler?.executeMappedAction("LONG_PRESS", selectedEarbudSide, "VOLUME_UP")
+                                    val act = getActionLabel(gestureList, "LONG_PRESS", selectedEarbudSide, availableActions)
+                                    lastExecutedFeedback = "Triggered: Long Press -> $act"
+                                    Toast.makeText(context, "Long Press Executed: $act", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = lastExecutedFeedback != null,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            lastExecutedFeedback?.let { feedback ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0x1A00E5FF))
+                                        .border(1.dp, Color(0x3300E5FF), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = feedback,
+                                        color = CyberCyan,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Reset to Default button
+            item {
+                Spacer(modifier = Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = {
                         scope.launch {
@@ -241,7 +381,7 @@ fun GestureSettingsScreen(
                                 GestureMappingEntity(eventType = "LONG_PRESS", earbudSide = "LEFT", actionType = "VOLUME_DOWN")
                             )
                             database.gestureDao().insertAll(defaults)
-                            Toast.makeText(context, "Gestures reset to defaults", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Gestures reset to factory defaults", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier
@@ -252,9 +392,15 @@ fun GestureSettingsScreen(
                     border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextGray)
                 ) {
-                    Text("Reset to Default", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(
+                        imageVector = Icons.Default.RestartAlt,
+                        contentDescription = null,
+                        tint = TextGray,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Reset to Factory Defaults", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
@@ -265,42 +411,99 @@ fun GestureSettingsScreen(
             onDismissRequest = { editingGesture = null },
             containerColor = Color(0xFF0F172A),
             title = {
-                Text(
-                    text = "Assign Action to ${gesture.eventType.replace("_", " ")}",
-                    color = TextWhite,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = "Assign Action",
+                        color = TextWhite,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${gesture.eventType.replace("_", " ")} on $selectedEarbudSide Earbud",
+                        color = CyberCyan,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    availableActions.forEach { (actionKey, label) ->
-                        val isSelected = gesture.actionType == actionKey
+                LazyColumn(
+                    modifier = Modifier.height(340.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(availableActions.size) { index ->
+                        val action = availableActions[index]
+                        val isSelected = gesture.actionType == action.key
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(if (isSelected) Color(0x3300E5FF) else Color(0x11FFFFFF))
+                                .border(
+                                    1.dp,
+                                    if (isSelected) CyberCyan else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
                                 .clickable {
                                     scope.launch {
                                         database.gestureDao().insertAll(
                                             listOf(
                                                 gesture.copy(
                                                     earbudSide = selectedEarbudSide,
-                                                    actionType = actionKey
+                                                    actionType = action.key,
+                                                    isEnabled = true
                                                 )
                                             )
                                         )
                                         editingGesture = null
+                                        Toast.makeText(context, "${gesture.eventType} assigned to ${action.title}", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                                .padding(12.dp),
+                                .padding(12.dp)
+                                .testTag("action_option_${action.key.lowercase()}"),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = label, color = TextWhite, fontSize = 13.sp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) CyberCyan else Color(0x22FFFFFF)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = action.icon,
+                                        contentDescription = null,
+                                        tint = if (isSelected) Color(0xFF050811) else TextWhite,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = action.title,
+                                        color = TextWhite,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = action.description,
+                                        color = TextGray,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
                             if (isSelected) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = CyberCyan, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = CyberCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
@@ -308,9 +511,61 @@ fun GestureSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { editingGesture = null }) {
-                    Text("Cancel", color = CyberCyan)
+                    Text("Close", color = CyberCyan, fontWeight = FontWeight.Bold)
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun EarbudTabItem(
+    title: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(38.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (isSelected) CyberCyan else Color.Transparent)
+            .clickable(onClick = onClick)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = title,
+            color = if (isSelected) Color(0xFF050811) else TextGray,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun TestGesturePill(
+    label: String,
+    onClick: () -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFF1E293B))
+            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = TextWhite,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
@@ -325,7 +580,7 @@ private fun GestureItemCard(
     GlassmorphicCard(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("gesture_card_${gestureName.lowercase().replace(" ", "_")}"),
+            .testTag("gesture_card_${gestureName.lowercase().replace(" ", "_").replace("(", "").replace(")", "")}"),
         onClick = onClick
     ) {
         Row(
@@ -338,9 +593,10 @@ private fun GestureItemCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
-                        .background(Color(0x1800E5FF)),
+                        .background(Color(0x1800E5FF))
+                        .border(1.dp, Color(0x3300E5FF), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -383,24 +639,17 @@ private fun GestureItemCard(
 private fun getActionLabel(
     mappings: List<GestureMappingEntity>,
     eventType: String,
-    side: String
+    side: String,
+    availableActions: List<GestureActionDef>
 ): String {
     val match = mappings.find { it.eventType == eventType && (it.earbudSide == side || it.earbudSide == "BOTH") }
-    return when (match?.actionType) {
-        "PLAY_PAUSE" -> "Play / Pause"
-        "NEXT_TRACK" -> "Next Track"
-        "PREV_TRACK" -> "Previous Track"
-        "VOLUME_UP" -> "Volume Up"
-        "VOLUME_DOWN" -> "Volume Down"
-        "VOICE_ASSISTANT" -> "AIRMIND Voice Assistant"
-        "TOGGLE_FLASHLIGHT" -> "Toggle Flashlight"
-        null -> when (eventType) {
-            "SINGLE_TAP" -> "Play / Pause"
-            "DOUBLE_TAP" -> "Next Track"
-            "TRIPLE_TAP" -> "Previous Track"
-            "LONG_PRESS" -> if (side == "RIGHT") "Volume Up" else "Volume Down"
-            else -> "Play / Pause"
-        }
-        else -> match.actionType
+    val actionKey = match?.actionType ?: when (eventType) {
+        "SINGLE_TAP" -> "PLAY_PAUSE"
+        "DOUBLE_TAP" -> "NEXT_TRACK"
+        "TRIPLE_TAP" -> "PREV_TRACK"
+        "LONG_PRESS" -> if (side == "RIGHT") "VOLUME_UP" else "VOLUME_DOWN"
+        else -> "PLAY_PAUSE"
     }
+
+    return availableActions.find { it.key == actionKey }?.title ?: actionKey
 }

@@ -23,7 +23,8 @@ data class EarbudKeyEvent(
 class EarbudActionHandler(
     private val context: Context,
     private val mobileControlManager: MobileControlManager,
-    private val database: AirMindDatabase
+    private val database: AirMindDatabase,
+    private val noiseCancellationController: com.example.airmind.core.audio.NoiseCancellationController? = null
 ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -79,9 +80,17 @@ class EarbudActionHandler(
                     mobileControlManager.triggerVoiceAssistant()
                     "Activated AIRMIND AI Assistant"
                 }
+                "ANC_CYCLE" -> {
+                    noiseCancellationController?.cycleMode()
+                    mobileControlManager.vibrateFeedback()
+                    "Cycled Noise Cancellation Mode"
+                }
                 "TOGGLE_FLASHLIGHT" -> {
                     mobileControlManager.toggleFlashlight()
                     "Toggled Flashlight"
+                }
+                "NONE" -> {
+                    "Gesture Disabled"
                 }
                 else -> {
                     dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
