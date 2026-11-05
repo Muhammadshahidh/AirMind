@@ -21,13 +21,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -217,7 +217,7 @@ fun EarbudsControlScreen(
 
             item {
                 ControlActionRow(
-                    icon = Icons.Default.VolumeUp,
+                    icon = Icons.AutoMirrored.Filled.VolumeUp,
                     title = "Volume Up",
                     subtitle = "Long Press (R)",
                     onClick = {
@@ -229,7 +229,7 @@ fun EarbudsControlScreen(
 
             item {
                 ControlActionRow(
-                    icon = Icons.Default.VolumeDown,
+                    icon = Icons.AutoMirrored.Filled.VolumeDown,
                     title = "Volume Down",
                     subtitle = "Long Press (L)",
                     onClick = {

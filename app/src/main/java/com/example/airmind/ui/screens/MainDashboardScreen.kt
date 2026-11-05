@@ -37,6 +37,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoMode
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothConnected
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeMute
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.GraphicEq
@@ -48,9 +51,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsBluetooth
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeMute
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -74,13 +74,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.airmind.core.audio.NoiseCancellationController
 import com.example.airmind.core.audio.NoiseControlMode
 import com.example.airmind.core.bluetooth.BluetoothDeviceManager
@@ -703,7 +703,7 @@ fun NoiseCancellationCard(
                     ) {
                         Icon(
                             imageVector = when (currentMode) {
-                                NoiseControlMode.ANC -> Icons.Default.VolumeMute
+                                NoiseControlMode.ANC -> Icons.AutoMirrored.Filled.VolumeMute
                                 NoiseControlMode.TRANSPARENCY -> Icons.Default.Hearing
                                 NoiseControlMode.OFF -> Icons.Default.GraphicEq
                             },

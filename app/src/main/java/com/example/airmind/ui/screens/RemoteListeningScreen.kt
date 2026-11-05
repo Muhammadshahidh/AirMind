@@ -31,11 +31,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeMute
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.VolumeMute
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -287,7 +287,7 @@ fun RemoteListeningScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.VolumeMute, contentDescription = null, tint = CyberCyan)
+                        Icon(imageVector = Icons.AutoMirrored.Filled.VolumeMute, contentDescription = null, tint = CyberCyan)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text("Noise Reduction", color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -317,7 +317,7 @@ fun RemoteListeningScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.VolumeUp, contentDescription = null, tint = CyberCyan)
+                        Icon(imageVector = Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, tint = CyberCyan)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text("Voice Enhancement", color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)

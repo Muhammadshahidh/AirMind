@@ -1,0 +1,15 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Ensure gradlew uses LF line endings so Linux GitHub runners can execute it directly
+gradlew text eol=lf
+
+# Ensure Windows batch scripts retain CRLF line endings
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.jar binary
+*.png binary
+*.webp binary
+*.keystore binary

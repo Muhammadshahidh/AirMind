@@ -3,6 +3,7 @@ package com.example.airmind.core.audio
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -10,6 +11,7 @@ import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
+import android.os.Build
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -74,10 +76,25 @@ class RemoteListeningEngine(private val context: Context) {
         val bufferSizeOut = max(minBufferSizeOut, 8192)
 
         try {
-            // Enable Bluetooth SCO if headset is connected
-            if (audioManager.isBluetoothScoAvailableOffCall) {
-                audioManager.startBluetoothSco()
-                audioManager.isBluetoothScoOn = true
+            // Enable Bluetooth SCO or communication device if headset is connected
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val commDevices = audioManager.availableCommunicationDevices
+                val target = commDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                }
+                if (target != null) {
+                    audioManager.setCommunicationDevice(target)
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                if (audioManager.isBluetoothScoAvailableOffCall) {
+                    @Suppress("DEPRECATION")
+                    audioManager.startBluetoothSco()
+                    @Suppress("DEPRECATION")
+                    audioManager.isBluetoothScoOn = true
+                }
             }
 
             audioRecord = AudioRecord(
@@ -210,9 +227,16 @@ class RemoteListeningEngine(private val context: Context) {
             audioTrack?.release()
             audioTrack = null
 
-            if (audioManager.isBluetoothScoOn) {
-                audioManager.stopBluetoothSco()
-                audioManager.isBluetoothScoOn = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                audioManager.clearCommunicationDevice()
+            } else {
+                @Suppress("DEPRECATION")
+                if (audioManager.isBluetoothScoOn) {
+                    @Suppress("DEPRECATION")
+                    audioManager.stopBluetoothSco()
+                    @Suppress("DEPRECATION")
+                    audioManager.isBluetoothScoOn = false
+                }
             }
         } catch (_: Exception) {}
 
