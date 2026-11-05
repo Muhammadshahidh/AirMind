@@ -1,0 +1,7 @@
+{
+  "name": "AIRMIND AI",
+  "description": "Universal Bluetooth Earbuds Controller and AI Assistant for Android with remote listening, gesture mapping, and smart mobile controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
