@@ -32,7 +32,9 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -99,13 +101,16 @@ fun GestureSettingsScreen(
 
     val availableActions = remember {
         listOf(
-            GestureActionDef("PLAY_PAUSE", "Play / Pause", "Toggle music or podcast playback", Icons.Default.PlayArrow, "Media"),
+            GestureActionDef("START_STOP_LISTENING", "Start / Stop Listening", "Toggle earbud microphone listening", Icons.Default.Mic, "Hands-Free AI"),
+            GestureActionDef("ACTIVATE_AI", "Activate AIRMIND AI", "Initiate voice query via earbuds", Icons.Default.AutoAwesome, "Hands-Free AI"),
+            GestureActionDef("REPEAT_RESPONSE", "Repeat Last AI Response", "Speak the last AI answer through earbuds", Icons.Default.Replay, "Hands-Free AI"),
+            GestureActionDef("PLAY_PAUSE", "Play / Pause", "Toggle music or media playback", Icons.Default.PlayArrow, "Media"),
             GestureActionDef("NEXT_TRACK", "Next Track", "Skip ahead to the next track", Icons.Default.SkipNext, "Media"),
-            GestureActionDef("PREV_TRACK", "Previous Track", "Go back to the start or previous track", Icons.Default.SkipPrevious, "Media"),
+            GestureActionDef("PREV_TRACK", "Previous Track", "Go back to the previous track", Icons.Default.SkipPrevious, "Media"),
             GestureActionDef("VOLUME_UP", "Volume Up", "Increase system playback volume", Icons.AutoMirrored.Filled.VolumeUp, "Audio"),
             GestureActionDef("VOLUME_DOWN", "Volume Down", "Decrease system playback volume", Icons.AutoMirrored.Filled.VolumeDown, "Audio"),
             GestureActionDef("ANC_CYCLE", "Cycle Noise Control", "Switch ANC, Transparency, and Normal", Icons.Default.Hearing, "Audio"),
-            GestureActionDef("VOICE_ASSISTANT", "AIRMIND AI Assistant", "Trigger on-device voice assistant", Icons.Default.AutoAwesome, "Smart AI"),
+            GestureActionDef("VOICE_ASSISTANT", "Voice Assistant", "Trigger system voice assistant", Icons.Default.AutoAwesome, "Smart AI"),
             GestureActionDef("TOGGLE_FLASHLIGHT", "Toggle Flashlight", "Switch device torch on or off", Icons.Default.FlashlightOn, "Utilities"),
             GestureActionDef("NONE", "None (Disabled)", "Ignore this touch event sequence", Icons.Default.Block, "Utilities")
         )
@@ -374,9 +379,10 @@ fun GestureSettingsScreen(
                         scope.launch {
                             database.gestureDao().clearAll()
                             val defaults = listOf(
-                                GestureMappingEntity(eventType = "SINGLE_TAP", earbudSide = "BOTH", actionType = "PLAY_PAUSE"),
-                                GestureMappingEntity(eventType = "DOUBLE_TAP", earbudSide = "BOTH", actionType = "NEXT_TRACK"),
-                                GestureMappingEntity(eventType = "TRIPLE_TAP", earbudSide = "BOTH", actionType = "PREV_TRACK"),
+                                GestureMappingEntity(eventType = "SINGLE_TAP", earbudSide = "BOTH", actionType = "START_STOP_LISTENING"),
+                                GestureMappingEntity(eventType = "DOUBLE_TAP", earbudSide = "BOTH", actionType = "ACTIVATE_AI"),
+                                GestureMappingEntity(eventType = "TRIPLE_TAP", earbudSide = "BOTH", actionType = "REPEAT_RESPONSE"),
+                                GestureMappingEntity(eventType = "LONG_PRESS", earbudSide = "BOTH", actionType = "VOICE_ASSISTANT"),
                                 GestureMappingEntity(eventType = "LONG_PRESS", earbudSide = "RIGHT", actionType = "VOLUME_UP"),
                                 GestureMappingEntity(eventType = "LONG_PRESS", earbudSide = "LEFT", actionType = "VOLUME_DOWN")
                             )
@@ -644,11 +650,11 @@ private fun getActionLabel(
 ): String {
     val match = mappings.find { it.eventType == eventType && (it.earbudSide == side || it.earbudSide == "BOTH") }
     val actionKey = match?.actionType ?: when (eventType) {
-        "SINGLE_TAP" -> "PLAY_PAUSE"
-        "DOUBLE_TAP" -> "NEXT_TRACK"
-        "TRIPLE_TAP" -> "PREV_TRACK"
-        "LONG_PRESS" -> if (side == "RIGHT") "VOLUME_UP" else "VOLUME_DOWN"
-        else -> "PLAY_PAUSE"
+        "SINGLE_TAP" -> "START_STOP_LISTENING"
+        "DOUBLE_TAP" -> "ACTIVATE_AI"
+        "TRIPLE_TAP" -> "REPEAT_RESPONSE"
+        "LONG_PRESS" -> if (side == "RIGHT") "VOLUME_UP" else if (side == "LEFT") "VOLUME_DOWN" else "VOICE_ASSISTANT"
+        else -> "START_STOP_LISTENING"
     }
 
     return availableActions.find { it.key == actionKey }?.title ?: actionKey

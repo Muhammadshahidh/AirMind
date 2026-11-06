@@ -30,6 +30,11 @@ class UserPreferencesRepository(private val context: Context) {
         val KEY_CONNECTION_ALERTS = booleanPreferencesKey("connection_alerts")
         val KEY_LAST_DEVICE_NAME = stringPreferencesKey("last_device_name")
         val KEY_DARK_MODE = booleanPreferencesKey("dark_mode")
+        val KEY_ALLOW_PHONE_FALLBACK = booleanPreferencesKey("allow_phone_fallback")
+    }
+
+    val isPhoneFallbackAllowed: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.KEY_ALLOW_PHONE_FALLBACK] ?: false
     }
 
     val remoteListeningConfig: Flow<RemoteListeningConfig> = context.dataStore.data.map { prefs ->
@@ -51,6 +56,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     val isConnectionAlertsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[PreferencesKeys.KEY_CONNECTION_ALERTS] ?: true
+    }
+
+    suspend fun setPhoneFallbackAllowed(allowed: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.KEY_ALLOW_PHONE_FALLBACK] = allowed }
     }
 
     suspend fun setListeningVolume(vol: Float) {

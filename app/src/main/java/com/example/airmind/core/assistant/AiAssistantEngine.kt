@@ -101,8 +101,9 @@ class AiAssistantEngine(
             }
             lower.contains("battery") -> {
                 val state = bluetoothDeviceManager.connectedState.value
-                if (state.isConnected && state.batteryCombined >= 0) {
-                    "Your ${state.deviceName} battery is at ${state.batteryCombined}%."
+                val battery = state.batteryCombined
+                if (state.isConnected && battery != null && battery >= 0) {
+                    "Your ${state.deviceName} battery is at $battery%."
                 } else if (state.isConnected) {
                     "${state.deviceName} is connected. Hardware does not broadcast separate battery telemetry."
                 } else {
@@ -172,5 +173,38 @@ class AiAssistantEngine(
         if (speakReply) {
             speechManager.speak(text)
         }
+    }
+
+    fun toggleListening() {
+        if (speechManager.isSpeaking.value) {
+            speechManager.stopSpeaking()
+            return
+        }
+        if (speechManager.isRecognizing.value) {
+            speechManager.stopListening()
+        } else {
+            startVoiceListening()
+        }
+    }
+
+    fun startVoiceListening() {
+        speechManager.startListening { query ->
+            processUserQuery(query, speakReply = true)
+        }
+    }
+
+    fun repeatLastResponse(): Boolean {
+        val lastBotMessage = _messages.value.lastOrNull { !it.isUser }
+        return if (lastBotMessage != null && lastBotMessage.text.isNotBlank()) {
+            speechManager.speak(lastBotMessage.text)
+            true
+        } else {
+            speechManager.speak("No previous AI response to repeat.")
+            false
+        }
+    }
+
+    fun interruptSpeech() {
+        speechManager.stopSpeaking()
     }
 }

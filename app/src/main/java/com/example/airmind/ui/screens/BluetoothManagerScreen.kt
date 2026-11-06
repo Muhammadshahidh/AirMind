@@ -137,10 +137,12 @@ fun BluetoothManagerScreen(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
                                 )
-                                if (connectedState.isConnected && (connectedState.batteryLeft >= 0 || connectedState.batteryRight >= 0)) {
+                                val bLeft = connectedState.batteryLeft
+                                val bRight = connectedState.batteryRight
+                                if (connectedState.isConnected && (bLeft != null || bRight != null)) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "L ${if (connectedState.batteryLeft >= 0) "${connectedState.batteryLeft}%" else "--"}  R ${if (connectedState.batteryRight >= 0) "${connectedState.batteryRight}%" else "--"}",
+                                        text = "L ${bLeft?.let { "$it%" } ?: "--"}  R ${bRight?.let { "$it%" } ?: "--"}",
                                         color = TextGray,
                                         fontSize = 11.sp
                                     )
@@ -181,7 +183,9 @@ fun BluetoothManagerScreen(
                 icon = Icons.Default.BatteryStd,
                 title = "Earbuds Battery",
                 subtitle = if (connectedState.isConnected) {
-                    "Left: ${if (connectedState.batteryLeft >= 0) "${connectedState.batteryLeft}%" else "100%"}  Right: ${if (connectedState.batteryRight >= 0) "${connectedState.batteryRight}%" else "100%"}"
+                    val bL = connectedState.batteryLeft?.let { "$it%" } ?: "Not Available"
+                    val bR = connectedState.batteryRight?.let { "$it%" } ?: "Not Available"
+                    "Left: $bL  Right: $bR"
                 } else {
                     "Hardware battery telemetry not reported"
                 }

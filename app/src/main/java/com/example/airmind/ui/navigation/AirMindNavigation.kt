@@ -117,8 +117,14 @@ fun AirMindNavGraph(
 
         composable(AirMindRoutes.EARBUDS_CONTROL) {
             EarbudsControlScreen(
+                deviceManager = appContainer.bluetoothDeviceManager,
                 actionHandler = appContainer.earbudActionHandler,
+                assistantEngine = appContainer.aiAssistantEngine,
+                speechManager = appContainer.speechManager,
+                preferencesRepository = appContainer.userPreferencesRepository,
                 noiseController = appContainer.noiseCancellationController,
+                onNavigateToGestures = { navController.navigate(AirMindRoutes.GESTURES) },
+                onNavigateToBluetooth = { navController.navigate(AirMindRoutes.BLUETOOTH_MANAGER) },
                 onBackClick = { navController.popBackStack() }
             )
         }

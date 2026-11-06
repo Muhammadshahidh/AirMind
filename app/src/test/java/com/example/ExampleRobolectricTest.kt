@@ -162,5 +162,28 @@ class ExampleRobolectricTest {
         handler.executeMappedAction("DOUBLE_TAP", "LEFT", "PLAY_PAUSE")
         assertNotNull(handler.recentEvents)
     }
+
+    @Test
+    fun `bluetooth audio route manager initializes safely`() {
+        val routeManager = com.example.airmind.core.audio.BluetoothAudioRouteManager(context)
+        assertNotNull(routeManager.activeRouteInfo.value)
+        routeManager.deactivateEarbudsRoute()
+    }
+
+    @Test
+    fun `speech manager respects phone fallback configuration`() = runBlocking {
+        val prefs = com.example.airmind.core.datastore.UserPreferencesRepository(context)
+        prefs.setPhoneFallbackAllowed(false)
+        val routeManager = com.example.airmind.core.audio.BluetoothAudioRouteManager(context)
+        val btManager = com.example.airmind.core.bluetooth.BluetoothDeviceManager(context)
+        val speechManager = com.example.airmind.core.assistant.SpeechManager(
+            context = context,
+            audioRouteManager = routeManager,
+            bluetoothDeviceManager = btManager,
+            preferencesRepository = prefs
+        )
+        assertNotNull(speechManager.spokenText.value)
+        speechManager.release()
+    }
 }
 

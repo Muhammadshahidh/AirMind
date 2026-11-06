@@ -45,12 +45,20 @@ data class ConnectedEarbudsState(
     val isConnected: Boolean = false,
     val deviceName: String = "No Earbuds Connected",
     val address: String = "",
-    val batteryLeft: Int = -1,
-    val batteryRight: Int = -1,
-    val batteryCombined: Int = -1,
-    val signalStrength: String = "Strong Signal",
-    val audioProfileType: String = "A2DP / HFP",
-    val supportedFeatures: List<String> = listOf("Media Buttons", "ANC Control", "Remote Listening", "Voice Assistant")
+    val manufacturer: String? = null,
+    val model: String? = null,
+    val deviceType: String = "EARBUDS",
+    val audioProfileType: String = "Disconnected",
+    val activeAudioRoute: String = "Phone Audio",
+    val hasMicrophone: Boolean = false,
+    val batteryCombined: Int? = null,
+    val batteryLeft: Int? = null,
+    val batteryRight: Int? = null,
+    val batteryCase: Int? = null,
+    val activeCodec: String? = null,
+    val isAncSupported: Boolean = false,
+    val signalStrength: String = "Connected",
+    val supportedFeatures: List<String> = listOf("Physical Touch Controls", "Earbud Microphone Input", "AI Voice Responses")
 )
 
 class BluetoothDeviceManager(private val context: Context) {
@@ -270,25 +278,39 @@ class BluetoothDeviceManager(private val context: Context) {
                     } else null
                 } catch (_: SecurityException) { null }
 
-                val battery = remoteDev?.let { extractBattery(it) } ?: -1
+                val rawBattery = remoteDev?.let { extractBattery(it) } ?: -1
+                val batteryVal: Int? = if (rawBattery >= 0) rawBattery else null
+
                 val profileType = when (activeBtAudio.type) {
-                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "A2DP Stereo Audio"
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "A2DP Stereo Media"
                     AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "HFP / SCO Telephony"
                     AudioDeviceInfo.TYPE_BLE_HEADSET,
                     AudioDeviceInfo.TYPE_BLE_SPEAKER -> "Bluetooth LE Audio"
                     else -> "Bluetooth Wireless"
                 }
 
+                val hasMic = audioInputs.any {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                }
+
                 _connectedState.value = ConnectedEarbudsState(
                     isConnected = true,
                     deviceName = name,
                     address = if (remoteDev != null) remoteDev.address else address,
-                    batteryCombined = battery,
-                    batteryLeft = if (battery >= 0) battery else 100,
-                    batteryRight = if (battery >= 0) battery else 100,
-                    signalStrength = "Strong Signal",
-                    audioProfileType = profileType
+                    deviceType = remoteDev?.let { determineDeviceType(it) } ?: "EARBUDS",
+                    manufacturer = remoteDev?.let { "Bluetooth Audio Device" },
+                    model = null,
+                    batteryCombined = batteryVal,
+                    batteryLeft = batteryVal,
+                    batteryRight = batteryVal,
+                    batteryCase = null,
+                    hasMicrophone = hasMic,
+                    activeAudioRoute = if (hasMic) "Earbuds Bluetooth Mic & Stereo Out" else "Earbuds Stereo Media Out",
+                    signalStrength = "Connected",
+                    audioProfileType = profileType,
+                    isAncSupported = false
                 )
+                AirMindEarbudService.startService(context)
                 refreshBondedDevices()
                 return
             }
@@ -300,7 +322,7 @@ class BluetoothDeviceManager(private val context: Context) {
 
             if (a2dpDevices.isNotEmpty()) {
                 val dev = a2dpDevices[0]
-                onDeviceConnected(dev, "A2DP Stereo Audio")
+                onDeviceConnected(dev, "A2DP Stereo Media")
                 return
             }
 
@@ -337,18 +359,21 @@ class BluetoothDeviceManager(private val context: Context) {
                 } catch (_: SecurityException) { null }
 
                 if (candidate != null) {
-                    onDeviceConnected(candidate, if (isA2dpConnected) "A2DP Stereo Audio" else "HFP Profile")
+                    onDeviceConnected(candidate, if (isA2dpConnected) "A2DP Stereo Media" else "HFP Profile")
                     return
                 } else {
                     _connectedState.value = ConnectedEarbudsState(
                         isConnected = true,
                         deviceName = "Bluetooth Earbuds",
-                        signalStrength = "Strong Signal",
-                        batteryLeft = 100,
-                        batteryRight = 100,
-                        batteryCombined = 100,
+                        signalStrength = "Connected",
+                        batteryLeft = null,
+                        batteryRight = null,
+                        batteryCombined = null,
+                        hasMicrophone = isHeadsetConnected,
+                        activeAudioRoute = "Bluetooth Audio Out",
                         audioProfileType = if (isA2dpConnected) "A2DP Stereo Media" else "HFP Headset"
                     )
+                    AirMindEarbudService.startService(context)
                     return
                 }
             }
@@ -362,27 +387,34 @@ class BluetoothDeviceManager(private val context: Context) {
             if (isA2dpOn || isScoOn) {
                 var devName = "Connected Bluetooth Earbuds"
                 var devAddr = ""
+                var candidateDev: BluetoothDevice? = null
                 try {
                     if (hasBluetoothConnectPermission()) {
-                        val firstBonded = bluetoothAdapter?.bondedDevices?.firstOrNull { isAudioDevice(it) }
+                        candidateDev = bluetoothAdapter?.bondedDevices?.firstOrNull { isAudioDevice(it) }
                             ?: bluetoothAdapter?.bondedDevices?.firstOrNull()
-                        if (firstBonded != null) {
-                            devName = firstBonded.name ?: devName
-                            devAddr = firstBonded.address ?: ""
+                        if (candidateDev != null) {
+                            devName = candidateDev.name ?: devName
+                            devAddr = candidateDev.address ?: ""
                         }
                     }
                 } catch (_: SecurityException) {}
+
+                val rawBattery = candidateDev?.let { extractBattery(it) } ?: -1
+                val batteryVal: Int? = if (rawBattery >= 0) rawBattery else null
 
                 _connectedState.value = ConnectedEarbudsState(
                     isConnected = true,
                     deviceName = devName,
                     address = devAddr,
-                    batteryLeft = 100,
-                    batteryRight = 100,
-                    batteryCombined = 100,
-                    signalStrength = "Strong Signal",
+                    batteryLeft = batteryVal,
+                    batteryRight = batteryVal,
+                    batteryCombined = batteryVal,
+                    hasMicrophone = isScoOn,
+                    activeAudioRoute = if (isScoOn) "Bluetooth SCO Telephony" else "Bluetooth A2DP Audio",
+                    signalStrength = "Connected",
                     audioProfileType = if (isA2dpOn) "A2DP Active Audio" else "SCO Active Audio"
                 )
+                AirMindEarbudService.startService(context)
                 refreshBondedDevices()
                 return
             }
@@ -399,27 +431,45 @@ class BluetoothDeviceManager(private val context: Context) {
             }
 
             // If none detected
+            val wasConnected = _connectedState.value.isConnected
             _connectedState.value = ConnectedEarbudsState(isConnected = false)
+            if (wasConnected) {
+                AirMindEarbudService.stopService(context)
+            }
             refreshBondedDevices()
         } catch (_: Exception) {
+            val wasConnected = _connectedState.value.isConnected
             _connectedState.value = ConnectedEarbudsState(isConnected = false)
+            if (wasConnected) {
+                AirMindEarbudService.stopService(context)
+            }
         }
     }
 
     @SuppressLint("MissingPermission")
     private fun onDeviceConnected(device: BluetoothDevice, profileType: String = "A2DP / HFP") {
         val name = try { device.name?.takeIf { it.isNotBlank() } ?: "Bluetooth Earbuds" } catch (_: Exception) { "Bluetooth Earbuds" }
-        val battery = extractBattery(device)
+        val rawBattery = extractBattery(device)
+        val batteryVal: Int? = if (rawBattery >= 0) rawBattery else null
+        val devType = determineDeviceType(device)
+
         _connectedState.value = ConnectedEarbudsState(
             isConnected = true,
             deviceName = name,
             address = device.address,
-            batteryCombined = battery,
-            batteryLeft = if (battery >= 0) battery else 100,
-            batteryRight = if (battery >= 0) battery else 100,
-            signalStrength = "Strong Signal",
-            audioProfileType = profileType
+            deviceType = devType,
+            manufacturer = "Bluetooth Audio Device",
+            model = null,
+            batteryCombined = batteryVal,
+            batteryLeft = batteryVal,
+            batteryRight = batteryVal,
+            hasMicrophone = profileType.contains("HFP") || profileType.contains("SCO") || devType == "EARBUDS",
+            activeAudioRoute = "Earbuds Audio Route",
+            signalStrength = "Connected",
+            audioProfileType = profileType,
+            isAncSupported = false
         )
+        AirMindEarbudService.startService(context)
         refreshBondedDevices()
     }
 

@@ -61,6 +61,12 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <!-- Earbud MediaSession & Hardware Controls Foreground Service -->
+        <service
+            android:name="com.example.airmind.core.bluetooth.AirMindEarbudService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
         <!-- Media Button Receiver for Earbuds Hardware Actions -->
         <receiver
             android:name="com.example.airmind.core.bluetooth.EarbudMediaButtonReceiver"

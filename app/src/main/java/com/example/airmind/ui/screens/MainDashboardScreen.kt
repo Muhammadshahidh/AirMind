@@ -647,13 +647,15 @@ private fun ConnectedStatusCard(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     if (state.isConnected) {
-                        if (state.batteryLeft >= 0 || state.batteryRight >= 0) {
+                        val bLeft = state.batteryLeft
+                        val bRight = state.batteryRight
+                        if (bLeft != null || bRight != null) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (state.batteryLeft >= 0) BatteryBadge(label = "L", percent = state.batteryLeft)
-                                if (state.batteryRight >= 0) BatteryBadge(label = "R", percent = state.batteryRight)
+                                if (bLeft != null) BatteryBadge(label = "L", percent = bLeft)
+                                if (bRight != null) BatteryBadge(label = "R", percent = bRight)
                             }
                         } else {
                             Text(

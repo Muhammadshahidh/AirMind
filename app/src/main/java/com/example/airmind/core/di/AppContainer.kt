@@ -14,6 +14,7 @@ interface AppContainer {
     val context: Context
     val database: AirMindDatabase
     val userPreferencesRepository: UserPreferencesRepository
+    val bluetoothAudioRouteManager: com.example.airmind.core.audio.BluetoothAudioRouteManager
     val bluetoothDeviceManager: BluetoothDeviceManager
     val bluetoothScanner: com.example.airmind.core.bluetooth.BluetoothScanner
     val mobileControlManager: MobileControlManager
@@ -34,6 +35,10 @@ class DefaultAppContainer(override val context: Context) : AppContainer {
         UserPreferencesRepository(context)
     }
 
+    override val bluetoothAudioRouteManager: com.example.airmind.core.audio.BluetoothAudioRouteManager by lazy {
+        com.example.airmind.core.audio.BluetoothAudioRouteManager(context)
+    }
+
     override val bluetoothDeviceManager: BluetoothDeviceManager by lazy {
         BluetoothDeviceManager(context)
     }
@@ -51,7 +56,12 @@ class DefaultAppContainer(override val context: Context) : AppContainer {
     }
 
     override val speechManager: SpeechManager by lazy {
-        SpeechManager(context)
+        SpeechManager(
+            context = context,
+            audioRouteManager = bluetoothAudioRouteManager,
+            bluetoothDeviceManager = bluetoothDeviceManager,
+            preferencesRepository = userPreferencesRepository
+        )
     }
 
     override val aiAssistantEngine: AiAssistantEngine by lazy {
@@ -69,7 +79,8 @@ class DefaultAppContainer(override val context: Context) : AppContainer {
             context = context,
             mobileControlManager = mobileControlManager,
             database = database,
-            noiseCancellationController = noiseCancellationController
+            noiseCancellationController = noiseCancellationController,
+            aiAssistantProvider = { aiAssistantEngine }
         )
     }
 
